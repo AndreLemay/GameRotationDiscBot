@@ -5,7 +5,7 @@
     "main": "src/Bot.js",
     "scripts": {
         "start": "ts-node src/Bot.ts",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "deploy-commands": "ts-node deploy-commands.ts"
     },
     "author": "Andre Lemay",
     "license": "ISC",
