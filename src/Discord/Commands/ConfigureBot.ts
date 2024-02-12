@@ -1,24 +1,81 @@
 import {
-  BaseInteraction,
+  ActionRowBuilder,
+  ChannelType,
   ChatInputCommandInteraction,
-  Interaction,
+  ComponentType,
   SlashCommandBuilder,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
 } from "discord.js";
 import { BotCommand } from "src/Types";
+import { updateBotConfig } from "../../Database/MongoClient";
+
+const COMMAND_NAME = "configure-bot";
+const OPTIONS = {
+  CHANNEL: "channel",
+  ALERT_ROLE: "alert-role",
+  SCHEDULE_DAY: "schedule-day",
+  MAIN_ROTATION_DAYS: "main-rotation-days",
+  SECONDARY_ROTATION_DAYS: "secondary-rotation-days",
+};
+const weekdayOptions = [
+  { name: "Monday", value: 1 },
+  { name: "Tuesday", value: 2 },
+  { name: "Wednesday", value: 3 },
+  { name: "Thursday", value: 4 },
+  { name: "Friday", value: 5 },
+  { name: "Saturday", value: 6 },
+  { name: "Sunday", value: 7 },
+];
+
+const mainRotationRows = [
+  new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId(OPTIONS.MAIN_ROTATION_DAYS)
+      .setPlaceholder("Main rotation days")
+      .addOptions(
+        ...weekdayOptions.map((weekday) =>
+          new StringSelectMenuOptionBuilder()
+            .setLabel(weekday.name)
+            .setValue(weekday.value.toString())
+        )
+      )
+      .setMinValues(1)
+      .setMaxValues(7)
+  ),
+];
+
+const secondaryRotationRows = [
+  new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId(OPTIONS.SECONDARY_ROTATION_DAYS)
+      .setPlaceholder("Secondary rotation days")
+      .addOptions(
+        ...weekdayOptions.map((weekday) =>
+          new StringSelectMenuOptionBuilder()
+            .setLabel(weekday.name)
+            .setValue(weekday.value.toString())
+        )
+      )
+      .setMinValues(1)
+      .setMaxValues(7)
+  ),
+];
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
-    .setName("ConfigureBot")
+    .setName(COMMAND_NAME)
     .setDescription("Configure the bot for your server")
     .addChannelOption((option) =>
       option
-        .setName("Channel")
+        .setName(OPTIONS.CHANNEL)
         .setDescription("Select the voice channel events will take place in")
         .setRequired(true)
+        .addChannelTypes(ChannelType.GuildVoice)
     )
     .addRoleOption((option) =>
       option
-        .setName("Alert Role")
+        .setName(OPTIONS.ALERT_ROLE)
         .setDescription(
           "Select the Role which will be alerted about upcoming events"
         )
@@ -26,29 +83,75 @@ const command: BotCommand = {
     )
     .addIntegerOption((option) =>
       option
-        .setName("Schedule Day")
+        .setName(OPTIONS.SCHEDULE_DAY)
         .setDescription("Set the day on which the schedule job will run")
-        .addChoices(
-          { name: "Monday", value: 1 },
-          { name: "Tuesday", value: 2 },
-          { name: "Wednesday", value: 3 },
-          { name: "Thursday", value: 4 },
-          { name: "Friday", value: 5 },
-          { name: "Saturday", value: 6 },
-          { name: "Sunday", value: 7 }
-        )
+        .addChoices(...weekdayOptions)
         .setRequired(true)
     ),
 
   execute: async (interaction: ChatInputCommandInteraction) => {
-    const channel = interaction.options.getChannel("Channel");
-    const alertRole = interaction.options.getRole("Alert Role");
-    const scheduleDay = interaction.options.getInteger("Schedule Day");
+    const channel = interaction.options.getChannel("channel");
+    const alertRole = interaction.options.getRole("alert-role");
+    const scheduleDay = interaction.options.getInteger("schedule-day");
 
-    console.log(`Received config command:
-        Channel: ${channel?.name}
-        Alert Role: ${alertRole?.name}
-        Schedule Day: ${scheduleDay}`);
+    const mainSelection: number[] = [];
+    const secondarySelection: number[] = [];
+    try {
+      let mainRotationResponse = await interaction.reply({
+        content: "Please select main rotation days",
+        components: mainRotationRows,
+        ephemeral: true,
+      });
+      const collectedMainRotation =
+        await mainRotationResponse.awaitMessageComponent<ComponentType.StringSelect>(
+          {
+            time: 60_000,
+          }
+        );
+      mainSelection.push(...collectedMainRotation.values.map((v) => +v));
+
+      const secondaryRotationResponse = await collectedMainRotation.update({
+        content: "Please select secondary rotation days",
+        components: secondaryRotationRows,
+      });
+      const collectedSecondaryRotation =
+        await secondaryRotationResponse.awaitMessageComponent<ComponentType.StringSelect>(
+          {
+            time: 60_000,
+          }
+        );
+      secondarySelection.push(
+        ...collectedSecondaryRotation.values.map((v) => +v)
+      );
+
+      await collectedSecondaryRotation.deferUpdate();
+
+      if (interaction.guildId !== null) {
+        await updateBotConfig({
+          guildId: interaction.guildId,
+          eventChannelId: channel!.id,
+          scheduleJobRunDay: scheduleDay!,
+          alertRoleId: alertRole!.id,
+          mainRotationDays: mainSelection,
+          secondaryRotationDays: secondarySelection,
+          eventStartHour: 12,
+        });
+        await collectedSecondaryRotation.editReply({
+          content: "Bot successfully configured!",
+          components: [],
+        });
+      } else {
+        await collectedSecondaryRotation.editReply({
+          content: "Error: GuildId not found",
+          components: [],
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      await interaction.editReply(
+        "Response not received within 1 minutes - command cancelled"
+      );
+    }
   },
 };
 

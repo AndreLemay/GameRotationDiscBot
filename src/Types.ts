@@ -6,15 +6,14 @@ import {
 import { DateTime } from "luxon";
 import { BSON } from "mongodb";
 
-type DayOfWeek = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
 export interface BotConfig {
-  mainRotationDays: DayOfWeek[];
-  secondaryRotationDays: DayOfWeek[];
+  mainRotationDays: number[];
+  secondaryRotationDays: number[];
   eventStartHour: number;
-  scheduleJobRunDay: DayOfWeek;
+  scheduleJobRunDay: number;
   guildId: Snowflake;
   eventChannelId: Snowflake;
+  alertRoleId: Snowflake;
 }
 
 export interface Game extends BSON.Document {
