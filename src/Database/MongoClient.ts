@@ -1,5 +1,5 @@
 import { Snowflake } from "discord.js";
-import { MongoClient, Collection, WithId } from "mongodb";
+import { MongoClient, Collection, WithId, ObjectId } from "mongodb";
 import { BotConfig, Game } from "src/Types";
 
 const uri = "mongodb://localhost:27017";
@@ -31,13 +31,26 @@ export const getGames = async () => {
     .toArray();
 };
 
-export const updateGame = async (game: WithId<Game>) => {
+export const updateGame = async (game: Game | WithId<Game>) => {
   if (!collections.games)
     throw new Error(
       "Tried to use DB before connection was initialized - call connectToDB first."
     );
 
-  return await collections.games.updateOne({ _id: game._id }, game);
+  const filter: { guildId: Snowflake; name?: string; _id?: ObjectId } = {
+    guildId: game.guildId,
+  };
+  if (!game._id) {
+    filter.name = game.name;
+  } else {
+    filter._id = game._id;
+  }
+
+  return await collections.games.updateOne(
+    filter,
+    { $set: game },
+    { upsert: true }
+  );
 };
 
 export const getBotConfig = async (guildId: Snowflake) => {

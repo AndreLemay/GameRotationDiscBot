@@ -1,6 +1,7 @@
 import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
+  SlashCommandSubcommandsOnlyBuilder,
   Snowflake,
 } from "discord.js";
 import { DateTime } from "luxon";
@@ -17,9 +18,11 @@ export interface BotConfig {
 }
 
 export interface Game extends BSON.Document {
+  guildId: Snowflake;
   name: string;
+  description: string;
   popularity: number;
-  lastEventDate: DateTime;
+  lastEventDate: DateTime | null;
 }
 
 export interface Event {
@@ -28,6 +31,9 @@ export interface Event {
 }
 
 export interface BotCommand {
-  data: Omit<SlashCommandBuilder, "addSubcommandGroup" | "addSubcommand">;
+  data:
+    | SlashCommandBuilder
+    | SlashCommandSubcommandsOnlyBuilder
+    | Omit<SlashCommandBuilder, "addSubcommandGroup" | "addSubcommand">;
   execute: (interaction: ChatInputCommandInteraction) => void;
 }

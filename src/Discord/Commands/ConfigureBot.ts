@@ -90,9 +90,9 @@ const command: BotCommand = {
     ),
 
   execute: async (interaction: ChatInputCommandInteraction) => {
-    const channel = interaction.options.getChannel("channel");
-    const alertRole = interaction.options.getRole("alert-role");
-    const scheduleDay = interaction.options.getInteger("schedule-day");
+    const channel = interaction.options.getChannel("channel", true);
+    const alertRole = interaction.options.getRole("alert-role", true);
+    const scheduleDay = interaction.options.getInteger("schedule-day", true);
 
     const mainSelection: number[] = [];
     const secondarySelection: number[] = [];
@@ -129,9 +129,9 @@ const command: BotCommand = {
       if (interaction.guildId !== null) {
         await updateBotConfig({
           guildId: interaction.guildId,
-          eventChannelId: channel!.id,
-          scheduleJobRunDay: scheduleDay!,
-          alertRoleId: alertRole!.id,
+          eventChannelId: channel.id,
+          scheduleJobRunDay: scheduleDay,
+          alertRoleId: alertRole.id,
           mainRotationDays: mainSelection,
           secondaryRotationDays: secondarySelection,
           eventStartHour: 12,
