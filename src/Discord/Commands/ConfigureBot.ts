@@ -9,6 +9,7 @@ import {
 } from "discord.js";
 import { BotCommand } from "src/Types";
 import { updateBotConfig } from "../../Database/MongoClient";
+import { WeekdayNumbers } from "luxon";
 
 const COMMAND_NAME = "configure-bot";
 const OPTIONS = {
@@ -17,6 +18,7 @@ const OPTIONS = {
   SCHEDULE_DAY: "schedule-day",
   MAIN_ROTATION_DAYS: "main-rotation-days",
   SECONDARY_ROTATION_DAYS: "secondary-rotation-days",
+  MAIN_ROTATION_DURATION: "main-rotation-duration",
 };
 const weekdayOptions = [
   { name: "Monday", value: 1 },
@@ -87,15 +89,30 @@ const command: BotCommand = {
         .setDescription("Set the day on which the schedule job will run")
         .addChoices(...weekdayOptions)
         .setRequired(true)
+    )
+    .addIntegerOption((option) =>
+      option
+        .setName(OPTIONS.MAIN_ROTATION_DURATION)
+        .setDescription(
+          "How many weeks the main rotation should last before it resets"
+        )
+        .setMinValue(1)
+        .setRequired(true)
     ),
-
   execute: async (interaction: ChatInputCommandInteraction) => {
-    const channel = interaction.options.getChannel("channel", true);
-    const alertRole = interaction.options.getRole("alert-role", true);
-    const scheduleDay = interaction.options.getInteger("schedule-day", true);
+    const channel = interaction.options.getChannel(OPTIONS.CHANNEL, true);
+    const alertRole = interaction.options.getRole(OPTIONS.ALERT_ROLE, true);
+    const scheduleDay = interaction.options.getInteger(
+      OPTIONS.SCHEDULE_DAY,
+      true
+    ) as WeekdayNumbers;
+    const mainRotationDuration = interaction.options.getInteger(
+      OPTIONS.MAIN_ROTATION_DURATION,
+      true
+    );
 
-    const mainSelection: number[] = [];
-    const secondarySelection: number[] = [];
+    const mainSelection: WeekdayNumbers[] = [];
+    const secondarySelection: WeekdayNumbers[] = [];
     try {
       let mainRotationResponse = await interaction.reply({
         content: "Please select main rotation days",
@@ -108,7 +125,9 @@ const command: BotCommand = {
             time: 60_000,
           }
         );
-      mainSelection.push(...collectedMainRotation.values.map((v) => +v));
+      mainSelection.push(
+        ...collectedMainRotation.values.map((v) => +v as WeekdayNumbers)
+      );
 
       const secondaryRotationResponse = await collectedMainRotation.update({
         content: "Please select secondary rotation days",
@@ -121,7 +140,7 @@ const command: BotCommand = {
           }
         );
       secondarySelection.push(
-        ...collectedSecondaryRotation.values.map((v) => +v)
+        ...collectedSecondaryRotation.values.map((v) => +v as WeekdayNumbers)
       );
 
       await collectedSecondaryRotation.deferUpdate();
@@ -135,6 +154,7 @@ const command: BotCommand = {
           mainRotationDays: mainSelection,
           secondaryRotationDays: secondarySelection,
           eventStartHour: 12,
+          mainRotationDuration: mainRotationDuration,
         });
         await collectedSecondaryRotation.editReply({
           content: "Bot successfully configured!",

@@ -4,17 +4,18 @@ import {
   SlashCommandSubcommandsOnlyBuilder,
   Snowflake,
 } from "discord.js";
-import { DateTime } from "luxon";
+import { DateTime, HourNumbers, WeekdayNumbers } from "luxon";
 import { BSON } from "mongodb";
 
 export interface BotConfig {
-  mainRotationDays: number[];
-  secondaryRotationDays: number[];
-  eventStartHour: number;
-  scheduleJobRunDay: number;
+  mainRotationDays: WeekdayNumbers[];
+  secondaryRotationDays: WeekdayNumbers[];
+  eventStartHour: HourNumbers;
+  scheduleJobRunDay: WeekdayNumbers;
   guildId: Snowflake;
   eventChannelId: Snowflake;
   alertRoleId: Snowflake;
+  mainRotationDuration: number;
 }
 
 export interface Game extends BSON.Document {
