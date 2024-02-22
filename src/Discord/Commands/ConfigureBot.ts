@@ -97,6 +97,7 @@ const command: BotCommand = {
           "How many weeks the main rotation should last before it resets"
         )
         .setMinValue(1)
+        .setMaxValue(8)
         .setRequired(true)
     ),
   execute: async (interaction: ChatInputCommandInteraction) => {
